@@ -350,7 +350,10 @@ https://github.com/kohana1232/kzp-lab01-kopchekchi
 
 Для другої лабораторної використовується окрема гілка `lab02`.
 
-Створено п'ять GitHub Issues для планування реалізації класу, фабричного методу, record, тестування та документації.
+Створено п'ять GitHub Issues для планування реалізації класу, фабричного методу, record, тестування та документації. Pull Request лабораторної №2:
+https://github.com/kohana1232/kzp-lab01-kopchekchi/pull/11
+
+Pull Request #11 об'єднано з гілкою main. Зміни включають клас Medicine, record ExpiryPrescription, оновлений Main.java, програмні перевірки та документацію.
 
 Посилання на Pull Request додається після його створення.
 
