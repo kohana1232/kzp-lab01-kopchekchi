@@ -5,19 +5,16 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Лабораторна робота №1.
+ * Лабораторна робота №2.
  * Варіант 11 — Аптека.
+ * Обробка препаратів за допомогою класів та record.
  */
 public class Main {
-
-    private static int validCount;
-    private static double totalPrice;
-    private static int minDays;
-    private static int prescriptionCount;
 
     /**
      * Головний метод програми.
@@ -58,15 +55,15 @@ public class Main {
         }
 
         try {
-            resetStatistics();
-            readData(input);
+            List<Medicine> medicines = readData(input);
 
-            if (validCount == 0) {
+            if (medicines.isEmpty()) {
                 System.out.println("Немає жодного коректного запису.");
                 return;
             }
 
-            String report = createReport();
+            String report = createReport(medicines);
+
             System.out.print(report);
             saveReport(output, report);
 
@@ -79,114 +76,62 @@ public class Main {
     }
 
     /**
-     * Скидає статистичні показники перед обробкою файлу.
-     */
-    private static void resetStatistics() {
-        validCount = 0;
-        totalPrice = 0;
-        minDays = Integer.MAX_VALUE;
-        prescriptionCount = 0;
-    }
-
-    /**
-     * Читає CSV-файл і передає рядки на перевірку.
+     * Читає CSV-файл і створює список препаратів.
      *
      * @param input шлях до вхідного файлу
+     * @return список коректних препаратів
      * @throws IOException якщо файл неможливо прочитати
      */
-    private static void readData(Path input) throws IOException {
+    private static List<Medicine> readData(Path input)
+            throws IOException {
+
         List<String> lines = Files.readAllLines(
                 input, StandardCharsets.UTF_8);
 
+        List<Medicine> medicines = new ArrayList<>();
+
         for (int i = 0; i < lines.size(); i++) {
-            processLine(lines.get(i), i + 1);
+            try {
+                Medicine medicine = Medicine.fromCsv(lines.get(i));
+                medicines.add(medicine);
+
+            } catch (IllegalArgumentException e) {
+                System.err.println("Рядок " + (i + 1)
+                        + ": " + e.getMessage());
+            }
         }
+
+        return medicines;
     }
 
     /**
-     * Перевіряє один запис і оновлює показники.
+     * Обчислює статистику та формує текст звіту.
      *
-     * @param line текст запису
-     * @param lineNumber номер рядка
+     * @param medicines список препаратів
+     * @return текстовий звіт
      */
-    private static void processLine(String line, int lineNumber) {
-        if (line.isBlank()) {
-            System.err.println("Рядок " + lineNumber
-                    + ": порожній запис");
-            return;
+    private static String createReport(List<Medicine> medicines) {
+
+        int validCount = medicines.size();
+        double totalPrice = 0;
+        int minDays = Integer.MAX_VALUE;
+        int prescriptionCount = 0;
+
+        for (Medicine medicine : medicines) {
+            totalPrice += medicine.getPrice();
+
+            ExpiryPrescription info = new ExpiryPrescription(
+                    medicine.getDaysToExpire(),
+                    medicine.isPrescription()
+            );
+
+            minDays = Math.min(minDays, info.daysToExpire());
+
+            if (info.prescription()) {
+                prescriptionCount++;
+            }
         }
 
-        String[] fields = line.split(";", -1);
-
-        if (fields.length != 5) {
-            System.err.println("Рядок " + lineNumber
-                    + ": очікується 5 полів");
-            return;
-        }
-
-        try {
-            String name = fields[0].trim();
-            String form = fields[1].trim();
-
-            if (name.isEmpty() || form.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "Назва або форма порожня");
-            }
-
-            double price = Double.parseDouble(fields[2].trim());
-            int days = Integer.parseInt(fields[3].trim());
-            String value = fields[4].trim();
-
-            if (!Double.isFinite(price) || price < 0) {
-                throw new IllegalArgumentException(
-                        "Ціна має бути невід'ємним числом");
-            }
-
-            if (days < 0) {
-                throw new IllegalArgumentException(
-                        "Кількість днів не може бути від'ємною");
-            }
-
-            if (!value.equalsIgnoreCase("true")
-                    && !value.equalsIgnoreCase("false")) {
-                throw new IllegalArgumentException(
-                        "prescription має бути true або false");
-            }
-
-            boolean prescription = Boolean.parseBoolean(value);
-            updateStatistics(price, days, prescription);
-
-        } catch (IllegalArgumentException e) {
-            System.err.println("Рядок " + lineNumber
-                    + ": " + e.getMessage());
-        }
-    }
-
-    /**
-     * Оновлює статистику за коректним препаратом.
-     *
-     * @param price ціна препарату
-     * @param days кількість днів до завершення терміну
-     * @param prescription рецептурність
-     */
-    private static void updateStatistics(
-            double price, int days, boolean prescription) {
-
-        validCount++;
-        totalPrice += price;
-        minDays = Math.min(minDays, days);
-
-        if (prescription) {
-            prescriptionCount++;
-        }
-    }
-
-    /**
-     * Формує текстовий звіт.
-     *
-     * @return сформований звіт
-     */
-    private static String createReport() {
         double averagePrice = totalPrice / validCount;
 
         return String.format(
@@ -204,14 +149,14 @@ public class Main {
     }
 
     /**
-     * Зберігає звіт у файл UTF-8.
+     * Зберігає звіт у файл.
      *
-     * @param output шлях до звіту
+     * @param output шлях до файлу
      * @param report текст звіту
      * @throws IOException якщо запис неможливий
      */
-    private static void saveReport(
-            Path output, String report) throws IOException {
+    private static void saveReport(Path output, String report)
+            throws IOException {
 
         Path parent = output.toAbsolutePath().getParent();
 
@@ -220,14 +165,15 @@ public class Main {
         }
 
         Files.writeString(
-                output, report, StandardCharsets.UTF_8);
+                output, report, StandardCharsets.UTF_8
+        );
     }
 
     /**
-     * Виводить довідку щодо запуску.
+     * Виводить довідку про запуск програми.
      */
     private static void printHelp() {
-        System.out.println("Лабораторна №1. Варіант 11 — Аптека.");
+        System.out.println("Лабораторна №2. Варіант 11 — Аптека.");
         System.out.println("Параметри:");
         System.out.println("  --help          Показати довідку");
         System.out.println("  --input ШЛЯХ    Вхідний CSV-файл");
